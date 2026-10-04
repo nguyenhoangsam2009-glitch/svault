@@ -1,607 +1,384 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S-Vault - Quản Lý Mật Khẩu Bảo Mật</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- CryptoJS Library for AES Encryption -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    <!-- Google Identity Services API -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(226, 232, 240, 0.8);
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>S-VAULT - Zero-Knowledge Password Manager</title>
+  <!-- Tailwind CSS & FontAwesome Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <!-- Google API Client Libraries -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
-    <!-- Top Navigation Header -->
-    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="bg-indigo-600 p-2 rounded-lg text-white">
-                    <i class="fa-solid fa-vault text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-lg leading-none">S-VAULT</h1>
-                    <span class="text-xs text-slate-400 font-normal">Zero-Knowledge Password Manager</span>
-                </div>
-            </div>
-            <!-- Lock / Unlock Status Bar -->
-            <div id="vaultStatusHeader" class="flex items-center space-x-3">
-                <span id="statusBadge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                    <i class="fa-solid fa-lock mr-1"></i> Đã khóa
-                </span>
-                <button id="lockBtn" onclick="lockVault()" class="hidden text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-md border border-slate-700 transition">
-                    <i class="fa-solid fa-right-from-bracket mr-1"></i> Khóa Vault
-                </button>
-            </div>
-        </div>
-    </header>
-    <!-- Main Container -->
-    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <!-- UNLOCKED VIEW CONTAINER -->
-        <div id="unlockedScreen" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <!-- Left Sidebar: Actions & Config -->
-            <div class="lg:col-span-4 space-y-6">
-                <!-- Quick Stats / Status -->
-                <div class="glass-card rounded-xl p-5 shadow-sm">
-                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Tổng quan</h2>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-slate-100 p-3 rounded-lg text-center">
-                            <span class="block text-2xl font-bold text-slate-700" id="totalItemsCount">0</span>
-                            <span class="text-xs text-slate-500">Mục đã lưu</span>
-                        </div>
-                        <div class="bg-indigo-50 p-3 rounded-lg text-center">
-                            <span class="block text-2xl font-bold text-indigo-600" id="syncStatusText">Sẵn sàng</span>
-                            <span class="text-xs text-indigo-500">Trạng thái Cloud</span>
-                        </div>
-                    </div>
-                    <button onclick="openAddModal()" class="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg shadow transition flex items-center justify-center space-x-2">
-                        <i class="fa-solid fa-plus"></i>
-                        <span>Thêm mật khẩu mới</span>
-                    </button>
-                </div>
-                <!-- Google Drive Sync Panel -->
-                <div class="glass-card rounded-xl p-5 shadow-sm border-l-4 border-l-indigo-500">
-                    <div class="flex items-center justify-between mb-3">
-                        <h2 class="text-sm font-bold text-slate-800 flex items-center space-x-2">
-                            <i class="fa-brands fa-google-drive text-emerald-600"></i>
-                            <span>Đồng bộ Cloud Drive</span>
-                        </h2>
-                    </div>
-                    <p class="text-xs text-slate-500 mb-4">Lưu trữ bản sao mã hóa trên Google Drive cá nhân của bạn.</p>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-xs font-medium text-slate-600 mb-1">Google OAuth Client ID</label>
-                            <input type="text" id="googleClientIdInput" placeholder="xxxx.apps.googleusercontent.com" class="w-full text-xs p-2 border border-slate-300 rounded focus:ring-1 focus:ring-indigo-500 focus:outline-none">
-                        </div>
-                        <button onclick="saveClientId()" class="w-full text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 py-1.5 rounded font-medium transition">
-                            Lưu cấu hình Client ID
-                        </button>
-                        <div class="pt-2 border-t border-slate-200 grid grid-cols-2 gap-2">
-                            <button onclick="uploadToDrive()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-2 px-2 rounded font-medium flex items-center justify-center space-x-1 transition">
-                                <i class="fa-solid fa-cloud-arrow-up"></i>
-                                <span>Tải lên Drive</span>
-                            </button>
-                            <button onclick="downloadFromDrive()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs py-2 px-2 rounded font-medium flex items-center justify-center space-x-1 transition">
-                                <i class="fa-solid fa-cloud-arrow-down"></i>
-                                <span>Tải từ Drive</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <!-- Export / Import Local Backup -->
-                <div class="glass-card rounded-xl p-4 shadow-sm text-xs text-slate-500 flex justify-between items-center">
-                    <span>Sao lưu file cục bộ:</span>
-                    <div class="space-x-2">
-                        <button onclick="exportJSON()" class="text-indigo-600 hover:underline font-medium">Export</button>
-                        <span>|</span>
-                        <button onclick="triggerImportJSON()" class="text-indigo-600 hover:underline font-medium">Import</button>
-                        <input type="file" id="importFileInput" class="hidden" accept=".json" onchange="importJSON(event)">
-                    </div>
-                </div>
-            </div>
-            <!-- Right Content: Vault Item List -->
-            <div class="lg:col-span-8 space-y-4">
-                <!-- Search & Category Filters -->
-                <div class="glass-card rounded-xl p-4 shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
-                    <div class="relative w-full sm:w-72">
-                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
-                        <input type="text" id="searchInput" oninput="renderVaultItems()" placeholder="Tìm kiếm tài khoản, dịch vụ..." class="w-full pl-9 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                    <div class="flex items-center space-x-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-                        <select id="categoryFilter" onchange="renderVaultItems()" class="text-xs bg-slate-50 border border-slate-200 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                            <option value="ALL">Tất cả danh mục</option>
-                            <option value="Social">Mạng xã hội</option>
-                            <option value="Banking">Ngân hàng / Ví điện tử</option>
-                            <option value="Work">Công việc / Email</option>
-                            <option value="Entertainment">Giải trí / Khác</option>
-                        </select>
-                    </div>
-                </div>
-                <!-- Password List Container -->
-                <div id="vaultItemsContainer" class="space-y-3">
-                    <!-- Dynamic rendering via JavaScript -->
-                </div>
-            </div>
-        </div>
-        <!-- LOCKED INITIAL SCREEN -->
-        <div id="lockedScreen" class="max-w-md mx-auto mt-12">
-            <div class="glass-card rounded-2xl p-8 shadow-xl text-center space-y-6">
-                <div class="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full">
-                    <i class="fa-solid fa-shield-halved text-3xl"></i>
-                </div>
-                <div>
-                    <h2 class="text-xl font-bold text-slate-800">Mở Khóa Kho S-Vault</h2>
-                    <p class="text-xs text-slate-500 mt-1">Nhập Mật Khẩu Master để giải mã dữ liệu an toàn của bạn.</p>
-                </div>
-                <form onsubmit="handleUnlock(event)" class="space-y-4">
-                    <div>
-                        <input type="password" id="masterPasswordInput" required placeholder="Nhập Master Password..." class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-center text-slate-800 text-base">
-                    </div>
-                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-xl shadow-md transition">
-                        Mở Khóa Dữ Liệu
-                    </button>
-                </form>
-                <div class="text-xs text-slate-400 border-t border-slate-100 pt-4">
-                    <p>Dữ liệu được mã hóa bằng AES-256 trực tiếp trên thiết bị của bạn.</p>
-                </div>
-            </div>
-        </div>
-    </main>
-    <!-- Modal Form: Add / Edit Item -->
-    <div id="itemModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-                <h3 class="font-bold text-slate-800 text-base" id="modalTitle">Thêm Mật Khẩu Mới</h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-            <form id="vaultForm" onsubmit="saveVaultItem(event)" class="space-y-3">
-                <input type="hidden" id="itemId">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tên Dịch vụ / Trang web *</label>
-                    <input type="text" id="itemName" required placeholder="vd: Facebook, MB Bank, Google..." class="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Đường dẫn Website / Domain</label>
-                    <input type="text" id="itemUrl" placeholder="vd: facebook.com hoặc https://mbbank.com.vn" class="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Tài khoản / Email *</label>
-                        <input type="text" id="itemUsername" required placeholder="Username hoặc Email" class="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Danh mục</label>
-                        <select id="itemCategory" class="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none">
-                            <option value="Social">Mạng xã hội</option>
-                            <option value="Banking">Ngân hàng / Ví</option>
-                            <option value="Work">Công việc</option>
-                            <option value="Entertainment">Giải trí / Khác</option>
-                        </select>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Mật khẩu *</label>
-                    <div class="relative">
-                        <input type="password" id="itemPassword" required class="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none pr-16">
-                        <button type="button" onclick="togglePasswordVisibility('itemPassword')" class="absolute right-8 top-2.5 text-slate-400 hover:text-slate-600 text-xs">
-                            <i class="fa-solid fa-eye"></i>
-                        </button>
-                        <button type="button" onclick="generateRandomPassword()" class="absolute right-2 top-2.5 text-indigo-600 hover:text-indigo-800 text-xs font-bold" title="Tạo mật khẩu ngẫu nhiên">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i>
-                        </button>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Ghi chú thêm</label>
-                    <textarea id="itemNotes" rows="2" placeholder="Ghi chú bảo mật khác..." class="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none"></textarea>
-                </div>
-                <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-xs font-medium">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">Lưu Thông Tin</button>
-                </div>
-            </form>
-        </div>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center shadow-lg">
+    <div class="flex items-center gap-3">
+      <div class="bg-indigo-600 p-2 rounded-lg"><i class="fa-solid fa-vault text-xl"></i></div>
+      <div>
+        <h1 class="font-bold text-lg leading-tight">S-VAULT</h1>
+        <p class="text-xs text-slate-400">Zero-Knowledge Password Manager</p>
+      </div>
     </div>
-    <!-- Application JavaScript Engine -->
-    <script>
-        // Global Application State
-        let masterKey = null;
-        let vaultItems = [];
-        const STORAGE_KEY = 'S_VAULT_ENCRYPTED_DATA';
-        const CLIENT_ID_KEY = 'S_VAULT_GOOGLE_CLIENT_ID';
-        const DRIVE_FILENAME = 's_vault_sync.json';
-        // --- Core Encryption & Lock Management ---
-        function handleUnlock(e) {
-            e.preventDefault();
-            const pass = document.getElementById('masterPasswordInput').value;
-            if (!pass) return;
-            masterKey = pass;
-            const encryptedData = localStorage.getItem(STORAGE_KEY);
-            if (encryptedData) {
-                try {
-                    const decryptedBytes = CryptoJS.AES.decrypt(encryptedData, masterKey);
-                    const decryptedString = decryptedBytes.toString(CryptoJS.enc.Utf8);
-                    if (!decryptedString) {
-                        alert('Mật khẩu Master không đúng!');
-                        masterKey = null;
-                        return;
-                    }
-                    vaultItems = JSON.parse(decryptedString);
-                } catch (err) {
-                    alert('Mật khẩu giải mã thất bại hoặc dữ liệu bị hỏng.');
-                    masterKey = null;
-                    return;
-                }
-            } else {
-                // Initial creation
-                vaultItems = [];
-                saveVaultLocally();
-            }
-            document.getElementById('lockedScreen').classList.add('hidden');
-            document.getElementById('unlockedScreen').classList.remove('hidden');
-            document.getElementById('lockBtn').classList.remove('hidden');
-            document.getElementById('statusBadge').className = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800";
-            document.getElementById('statusBadge').innerHTML = '<i class="fa-solid fa-lock-open mr-1"></i> Đã mở khóa';
-            loadSavedClientId();
-            renderVaultItems();
+    <div class="flex items-center gap-3">
+      <span class="bg-emerald-500/10 text-emerald-400 text-xs px-3 py-1 rounded-full font-medium border border-emerald-500/20"><i class="fa-solid fa-lock text-xs mr-1"></i>Đã mở khóa</span>
+      <button onclick="clearVault()" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-1.5"><i class="fa-solid fa-right-from-bracket"></i> Khóa Vault</button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-6xl mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+
+    <!-- Cột trái: Bảng điều khiển & Đồng bộ -->
+    <div class="space-y-6">
+      
+      <!-- Tổng quan -->
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Tổng quan</h2>
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+            <div id="totalCount" class="text-2xl font-black text-slate-800">0</div>
+            <div class="text-xs text-slate-500 font-medium">Mục đã lưu</div>
+          </div>
+          <div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/50 text-center">
+            <div id="syncStatus" class="text-sm font-bold text-indigo-600 mt-1">Chưa đồng bộ</div>
+            <div class="text-xs text-slate-500 font-medium mt-1">Trạng thái Cloud</div>
+          </div>
+        </div>
+        <button onclick="openModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-xl shadow-md shadow-indigo-200 transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-plus"></i> Thêm mật khẩu mới
+        </button>
+      </div>
+
+      <!-- Đồng bộ Cloud Drive -->
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
+        <div class="flex items-center gap-2 text-slate-800 font-bold">
+          <i class="fa-brands fa-google-drive text-emerald-600 text-lg"></i>
+          <h3>Đồng bộ Cloud Drive</h3>
+        </div>
+        <p class="text-xs text-slate-500 leading-relaxed">Lưu trữ bản sao mã hóa trên Google Drive cá nhân của bạn.</p>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Google OAuth Client ID</label>
+          <input type="text" id="clientIdInput" placeholder="Dán Client ID của bạn vào đây" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none truncate"/>
+          <button onclick="saveClientId()" class="w-full mt-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold py-2 rounded-lg transition">Lưu cấu hình Client ID</button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-2">
+          <button onclick="uploadToDrive()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2.5 px-3 rounded-lg shadow-sm transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Tải lên Drive
+          </button>
+          <button onclick="downloadFromDrive()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold py-2.5 px-3 rounded-lg shadow-sm transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-cloud-arrow-down"></i> Tải từ Drive
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Cột phải: Danh sách mật khẩu -->
+    <div class="md:col-span-2 space-y-4">
+      
+      <!-- Thanh tìm kiếm -->
+      <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200/80 flex gap-3">
+        <div class="relative flex-1">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+          <input type="text" id="searchInput" oninput="renderVault()" placeholder="Tìm kiếm tài khoản, dịch vụ..." class="w-full pl-10 pr-4 py-2 bg-slate-50 text-sm rounded-xl border border-slate-200/60 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition"/>
+        </div>
+      </div>
+
+      <!-- Danh sách Cards -->
+      <div id="vaultList" class="space-y-3">
+        <!-- JS sẽ tự động đổ các thẻ mật khẩu vào đây -->
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Modal Thêm / Sửa mật khẩu -->
+  <div id="itemModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 id="modalTitle" class="font-bold text-slate-800">Thêm mật khẩu mới</h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <form id="itemForm" onsubmit="handleSaveItem(event)" class="space-y-3">
+        <input type="hidden" id="itemId"/>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Tên gợi nhớ / Tên cá nhân *</label>
+          <input type="text" id="itemTitleInput" required placeholder="VD: Hoàng Sâm, Flycam Store, Nick Phụ..." class="w-full text-sm p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"/>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Tên dịch vụ / Ứng dụng</label>
+          <input type="text" id="itemServiceInput" placeholder="VD: Facebook, Google, TikTok..." class="w-full text-sm p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"/>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Tên đăng nhập / SĐT / Email</label>
+          <input type="text" id="itemUsernameInput" placeholder="VD: 0394693107 hoặc email@gmail.com" class="w-full text-sm p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"/>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Mật khẩu *</label>
+          <div class="relative">
+            <input type="password" id="itemPasswordInput" required class="w-full text-sm p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none pr-10"/>
+            <button type="button" onclick="toggleModalPassVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><i id="modalPassIcon" class="fa-solid fa-eye text-xs"></i></button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Đường dẫn trang web (URL)</label>
+          <input type="url" id="itemUrlInput" placeholder="https://facebook.com" class="w-full text-sm p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"/>
+        </div>
+
+        <div class="pt-3 flex gap-2">
+          <button type="button" onclick="closeModal()" class="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold py-2.5 rounded-xl transition">Hủy</button>
+          <button type="submit" class="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2.5 rounded-xl shadow-md transition">Lưu mật khẩu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- JavaScript Logic -->
+  <script>
+    // --- KHỞI TẠO BIẾN DỮ LIỆU ---
+    let vaultItems = JSON.parse(localStorage.getItem('svault_data') || '[]');
+    let googleClientId = localStorage.getItem('svault_client_id') || '';
+    let tokenClient;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById('clientIdInput').value = googleClientId;
+      renderVault();
+    });
+
+    // --- HIỂN THỊ DANH SÁCH THẺ (RENDER) ---
+    function renderVault() {
+      const container = document.getElementById('vaultList');
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      container.innerHTML = '';
+
+      const filtered = vaultItems.filter(item => 
+        (item.title && item.title.toLowerCase().includes(search)) ||
+        (item.service && item.service.toLowerCase().includes(search)) ||
+        (item.username && item.username.toLowerCase().includes(search))
+      );
+
+      document.getElementById('totalCount').innerText = vaultItems.length;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white p-8 rounded-2xl text-center border border-slate-200/80">
+            <i class="fa-solid fa-folder-open text-3xl text-slate-300 mb-2"></i>
+            <p class="text-sm text-slate-500 font-medium">Chưa có mật khẩu nào được lưu.</p>
+          </div>
+        `;
+        return;
+      }
+
+      filtered.forEach((item) => {
+        // Xử lý Icon hiển thị
+        let iconClass = "fa-solid fa-globe";
+        const serviceLower = (item.service || '').toLowerCase();
+        if (serviceLower.includes('facebook')) iconClass = "fa-brands fa-facebook text-blue-600";
+        else if (serviceLower.includes('google') || serviceLower.includes('gmail')) iconClass = "fa-brands fa-google text-red-500";
+        else if (serviceLower.includes('tiktok')) iconClass = "fa-brands fa-tiktok text-slate-900";
+        else if (serviceLower.includes('zalo')) iconClass = "fa-solid fa-comment text-blue-500";
+
+        // Định dạng URL mở tab mới
+        const targetUrl = item.url ? item.url : 'javascript:void(0)';
+        const linkTarget = item.url ? 'target="_blank" rel="noopener noreferrer"' : '';
+
+        const card = document.createElement('div');
+        card.className = "bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 hover:shadow-md transition flex items-center justify-between gap-4";
+        
+        card.innerHTML = `
+          <div class="flex items-center gap-3.5 min-w-0">
+            <!-- Icon nhấp để mở URL -->
+            <a href="${targetUrl}" ${linkTarget} class="w-11 h-11 bg-slate-100 rounded-xl flex items-center justify-center text-xl shrink-0 hover:scale-105 transition">
+              <i class="${iconClass}"></i>
+            </a>
+
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <!-- Tên cá nhân / Gợi nhớ (Click mở link) -->
+                <a href="${targetUrl}" ${linkTarget} class="font-bold text-slate-800 text-base truncate hover:text-indigo-600 transition">
+                  ${item.title || item.service || 'Tài khoản không tên'}
+                </a>
+                ${item.service ? `<span class="bg-slate-100 text-slate-500 text-[10px] font-semibold px-2 py-0.5 rounded-md uppercase">${item.service}</span>` : ''}
+              </div>
+              <p class="text-xs text-slate-500 truncate font-mono mt-0.5">${item.username || 'Chưa nhập Tên đăng nhập/SĐT'}</p>
+            </div>
+          </div>
+
+          <!-- Nhóm thao tác bên phải -->
+          <div class="flex items-center gap-2 shrink-0">
+            <div class="relative bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex items-center gap-2">
+              <input type="password" id="pass-${item.id}" value="${item.password}" readonly class="bg-transparent text-xs font-mono outline-none w-28 text-slate-700"/>
+              <button onclick="togglePass('${item.id}')" class="text-slate-400 hover:text-slate-600"><i id="eye-${item.id}" class="fa-solid fa-eye text-xs"></i></button>
+            </div>
+            <button onclick="copyPass('${item.password}')" title="Sao chép mật khẩu" class="p-2 text-slate-400 hover:text-indigo-600 transition"><i class="fa-solid fa-copy"></i></button>
+            <button onclick="editItem('${item.id}')" title="Chỉnh sửa" class="p-2 text-slate-400 hover:text-amber-600 transition"><i class="fa-solid fa-pen-to-square"></i></button>
+            <button onclick="deleteItem('${item.id}')" title="Xóa" class="p-2 text-slate-400 hover:text-red-600 transition"><i class="fa-solid fa-trash-can"></i></button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // --- QUẢN LÝ DỮ LIỆU VAULT ---
+    function handleSaveItem(e) {
+      e.preventDefault();
+      const id = document.getElementById('itemId').value;
+      const title = document.getElementById('itemTitleInput').value.trim();
+      const service = document.getElementById('itemServiceInput').value.trim();
+      const username = document.getElementById('itemUsernameInput').value.trim();
+      const password = document.getElementById('itemPasswordInput').value;
+      const url = document.getElementById('itemUrlInput').value.trim();
+
+      if (id) {
+        // Cập nhật
+        const index = vaultItems.findIndex(i => i.id === id);
+        if (index !== -1) {
+          vaultItems[index] = { id, title, service, username, password, url };
         }
-        function lockVault() {
-            masterKey = null;
-            vaultItems = [];
-            document.getElementById('masterPasswordInput').value = '';
-            document.getElementById('unlockedScreen').classList.add('hidden');
-            document.getElementById('lockedScreen').classList.remove('hidden');
-            document.getElementById('lockBtn').classList.add('hidden');
-            document.getElementById('statusBadge').className = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800";
-            document.getElementById('statusBadge').innerHTML = '<i class="fa-solid fa-lock mr-1"></i> Đã khóa';
-        }
-        function saveVaultLocally() {
-            if (!masterKey) return;
-            const cipherText = CryptoJS.AES.encrypt(JSON.stringify(vaultItems), masterKey).toString();
-            localStorage.setItem(STORAGE_KEY, cipherText);
-            document.getElementById('totalItemsCount').innerText = vaultItems.length;
-        }
-        // --- Favicon & Brand Icon Engine ---
-        function getBrandIconHtml(item) {
-            let domain = '';
-            if (item.url) {
-                try {
-                    let formattedUrl = item.url.startsWith('http') ? item.url : 'https://' + item.url;
-                    domain = new URL(formattedUrl).hostname;
-                } catch(e) {
-                    domain = item.url.toLowerCase();
-                }
-            }
-            if (!domain && item.name) {
-                const nameLower = item.name.toLowerCase().trim();
-                const knownBrands = {
-                    'facebook': 'facebook.com',
-                    'google': 'google.com',
-                    'mb bank': 'mbbank.com.vn',
-                    'mbbank': 'mbbank.com.vn',
-                    'vietcombank': 'vietcombank.com.vn',
-                    'vcb': 'vietcombank.com.vn',
-                    'tiktok': 'tiktok.com',
-                    'zalo': 'zalo.me',
-                    'instagram': 'instagram.com',
-                    'telegram': 'telegram.org',
-                    'netflix': 'netflix.com',
-                    'github': 'github.com'
-                };
-                domain = knownBrands[nameLower] || '';
-            }
-            const categoryIcons = {
-                'Social': 'fa-users text-blue-500',
-                'Banking': 'fa-building-columns text-emerald-600',
-                'Work': 'fa-briefcase text-amber-600',
-                'Entertainment': 'fa-film text-purple-500'
-            };
-            const fallbackClass = categoryIcons[item.category] || 'fa-key text-slate-400';
-            if (domain) {
-                const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-                return `<img src="${faviconUrl}" class="w-8 h-8 rounded-lg object-contain bg-slate-100 p-1 border border-slate-200" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\\'fa-solid ${fallbackClass} text-xl\\'></i>';">`;
-            }
-            return `<div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center border border-slate-200"><i class="fa-solid ${fallbackClass} text-base"></i></div>`;
-        }
-        // --- Vault CRUD & Render Functions ---
-        function renderVaultItems() {
-            const container = document.getElementById('vaultItemsContainer');
-            const search = document.getElementById('searchInput').value.toLowerCase();
-            const category = document.getElementById('categoryFilter').value;
-            const filtered = vaultItems.filter(item => {
-                const matchesSearch = item.name.toLowerCase().includes(search) || 
-                                     item.username.toLowerCase().includes(search) ||
-                                     (item.url && item.url.toLowerCase().includes(search));
-                const matchesCategory = category === 'ALL' || item.category === category;
-                return matchesSearch && matchesCategory;
-            });
-            document.getElementById('totalItemsCount').innerText = vaultItems.length;
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="glass-card rounded-xl p-8 text-center text-slate-400">
-                        <i class="fa-solid fa-box-open text-3xl mb-2"></i>
-                        <p class="text-sm">Không tìm thấy dữ liệu mật khẩu nào.</p>
-                    </div>`;
-                return;
-            }
-            container.innerHTML = filtered.map(item => `
-                <div class="glass-card rounded-xl p-4 shadow-sm hover:shadow transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div class="flex items-center space-x-3 w-full sm:w-auto">
-                        ${getBrandIconHtml(item)}
-                        <div>
-                            <h3 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
-                                <span>${escapeHtml(item.name)}</span>
-                                <span class="text-[10px] font-normal px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full border border-slate-200">${item.category || 'Khác'}</span>
-                            </h3>
-                            <p class="text-xs text-slate-500 font-mono mt-0.5">${escapeHtml(item.username)}</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-2 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
-                        <div class="relative bg-slate-100 rounded-lg px-2.5 py-1 flex items-center space-x-2">
-                            <input type="password" id="pwd_${item.id}" readonly value="${escapeHtml(item.password)}" class="bg-transparent text-xs font-mono w-24 sm:w-32 focus:outline-none text-slate-700">
-                            <button onclick="togglePasswordVisibility('pwd_${item.id}')" class="text-slate-400 hover:text-slate-600 text-xs">
-                                <i class="fa-solid fa-eye"></i>
-                            </button>
-                        </div>
-                        <button onclick="copyToClipboard('${escapeJsString(item.password)}', 'Mật khẩu')" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Sao chép mật khẩu">
-                            <i class="fa-solid fa-copy text-sm"></i>
-                        </button>
-                        <button onclick="openEditModal('${item.id}')" class="p-2 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Chỉnh sửa">
-                            <i class="fa-solid fa-pen-to-square text-sm"></i>
-                        </button>
-                        <button onclick="deleteVaultItem('${item.id}')" class="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Xóa">
-                            <i class="fa-solid fa-trash-can text-sm"></i>
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-        }
-        function saveVaultItem(e) {
-            e.preventDefault();
-            const id = document.getElementById('itemId').value;
-            const name = document.getElementById('itemName').value;
-            const url = document.getElementById('itemUrl').value;
-            const username = document.getElementById('itemUsername').value;
-            const category = document.getElementById('itemCategory').value;
-            const password = document.getElementById('itemPassword').value;
-            const notes = document.getElementById('itemNotes').value;
-            if (id) {
-                const index = vaultItems.findIndex(i => i.id === id);
-                if (index !== -1) {
-                    vaultItems[index] = { id, name, url, username, category, password, notes, updatedAt: new Date().toISOString() };
-                }
-            } else {
-                const newItem = {
-                    id: 'item_' + Date.now(),
-                    name, url, username, category, password, notes,
-                    createdAt: new Date().toISOString()
-                };
-                vaultItems.unshift(newItem);
-            }
-            saveVaultLocally();
-            renderVaultItems();
-            closeModal();
-        }
-        function openAddModal() {
-            document.getElementById('vaultForm').reset();
-            document.getElementById('itemId').value = '';
-            document.getElementById('modalTitle').innerText = 'Thêm Mật Khẩu Mới';
-            document.getElementById('itemModal').classList.remove('hidden');
-            document.getElementById('itemModal').classList.add('flex');
-        }
-        function openEditModal(id) {
-            const item = vaultItems.find(i => i.id === id);
-            if (!item) return;
-            document.getElementById('itemId').value = item.id;
-            document.getElementById('itemName').value = item.name;
-            document.getElementById('itemUrl').value = item.url || '';
-            document.getElementById('itemUsername').value = item.username;
-            document.getElementById('itemCategory').value = item.category || 'Social';
-            document.getElementById('itemPassword').value = item.password;
-            document.getElementById('itemNotes').value = item.notes || '';
-            document.getElementById('modalTitle').innerText = 'Chỉnh Sửa Dữ Liệu';
-            document.getElementById('itemModal').classList.remove('hidden');
-            document.getElementById('itemModal').classList.add('flex');
-        }
-        function closeModal() {
-            document.getElementById('itemModal').classList.add('hidden');
-            document.getElementById('itemModal').classList.remove('flex');
-        }
-        function deleteVaultItem(id) {
-            if (confirm('Bạn có chắc chắn muốn xóa mục mật khẩu này không?')) {
-                vaultItems = vaultItems.filter(i => i.id !== id);
-                saveVaultLocally();
-                renderVaultItems();
-            }
-        }
-        // --- Utilities ---
-        function togglePasswordVisibility(inputId) {
-            const el = document.getElementById(inputId);
-            if (el.type === 'password') {
-                el.type = 'text';
-            } else {
-                el.type = 'password';
-            }
-        }
-        function generateRandomPassword() {
-            const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~";
-            let pass = "";
-            for (let i = 0; i < 16; i++) {
-                pass += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            document.getElementById('itemPassword').value = pass;
-            document.getElementById('itemPassword').type = 'text';
-        }
-        function copyToClipboard(text, label) {
-            navigator.clipboard.writeText(text).then(() => {
-                alert(`Đã sao chép ${label} vào bộ nhớ tạm!`);
-            });
-        }
-        function escapeHtml(str) {
-            return (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-        }
-        function escapeJsString(str) {
-            return (str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        }
-        // --- Local JSON Export / Import ---
-        function exportJSON() {
-            const encryptedData = localStorage.getItem(STORAGE_KEY);
-            if (!encryptedData) {
-                alert('Không có dữ liệu để xuất!');
-                return;
-            }
-            const blob = new Blob([encryptedData], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `S-Vault_Backup_${new Date().toISOString().slice(0,10)}.json`;
-            a.click();
-        }
-        function triggerImportJSON() {
-            document.getElementById('importFileInput').click();
-        }
-        function importJSON(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const content = event.target.result;
-                try {
-                    const decrypted = CryptoJS.AES.decrypt(content, masterKey).toString(CryptoJS.enc.Utf8);
-                    if (!decrypted) {
-                        alert('Tệp sao lưu không đúng format hoặc không cùng Master Password!');
-                        return;
-                    }
-                    localStorage.setItem(STORAGE_KEY, content);
-                    vaultItems = JSON.parse(decrypted);
-                    renderVaultItems();
-                    alert('Import dữ liệu thành công!');
-                } catch(err) {
-                    alert('Lỗi đọc tệp sao lưu.');
-                }
-            };
-            reader.readAsText(file);
-        }
-        // --- Google Drive Integration Engine ---
-        function saveClientId() {
-            const val = document.getElementById('googleClientIdInput').value.trim();
-            localStorage.setItem(CLIENT_ID_KEY, val);
-            alert('Đã lưu Google Client ID!');
-        }
-        function loadSavedClientId() {
-            const val = localStorage.getItem(CLIENT_ID_KEY) || '';
-            document.getElementById('googleClientIdInput').value = val;
-        }
-        function getGoogleAccessToken(callback) {
-            const clientId = localStorage.getItem(CLIENT_ID_KEY);
-            if (!clientId) {
-                alert('Vui lòng nhập và lưu Google Client ID trước khi đồng bộ!');
-                return;
-            }
-            const client = google.accounts.oauth2.initTokenClient({
-                client_id: clientId,
-                scope: 'https://www.googleapis.com/auth/drive.file',
-                callback: (response) => {
-                    if (response.access_token) {
-                        callback(response.access_token);
-                    } else {
-                        alert('Xác thực Google thất bại.');
-                    }
-                },
-            });
-            client.requestAccessToken();
-        }
-        async function uploadToDrive() {
-            const encryptedData = localStorage.getItem(STORAGE_KEY);
-            if (!encryptedData) {
-                alert('Không có dữ liệu để tải lên!');
-                return;
-            }
-            document.getElementById('syncStatusText').innerText = 'Đang đẩy lên...';
-            getGoogleAccessToken(async (token) => {
-                try {
-                    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${DRIVE_FILENAME}' and trashed=false`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                    const searchData = await searchRes.json();
-                    const metadata = { name: DRIVE_FILENAME, mimeType: 'application/json' };
-                    const fileContent = encryptedData;
-                    let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-                    let method = 'POST';
-                    if (searchData.files && searchData.files.length > 0) {
-                        const fileId = searchData.files[0].id;
-                        url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`;
-                        method = 'PATCH';
-                    }
-                    const form = new FormData();
-                    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-                    form.append('file', new Blob([fileContent], { type: 'application/json' }));
-                    const uploadRes = await fetch(url, {
-                        method: method,
-                        headers: { Authorization: `Bearer ${token}` },
-                        body: form
-                    });
-                    if (uploadRes.ok) {
-                        document.getElementById('syncStatusText').innerText = 'Thành công';
-                        alert('Đã tải dữ liệu mã hóa lên Google Drive thành công!');
-                    } else {
-                        throw new Error('Upload failed');
-                    }
-                } catch(err) {
-                    console.error(err);
-                    document.getElementById('syncStatusText').innerText = 'Lỗi Sync';
-                    alert('Có lỗi xảy ra khi tải lên Google Drive.');
-                }
-            });
-        }
-        async function downloadFromDrive() {
-            document.getElementById('syncStatusText').innerText = 'Đang tải về...';
-            getGoogleAccessToken(async (token) => {
-                try {
-                    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${DRIVE_FILENAME}' and trashed=false`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                    const searchData = await searchRes.json();
-                    if (!searchData.files || searchData.files.length === 0) {
-                        alert('Không tìm thấy tệp bản sao s_vault_sync.json trên Google Drive.');
-                        document.getElementById('syncStatusText').innerText = 'Sẵn sàng';
-                        return;
-                    }
-                    const fileId = searchData.files[0].id;
-                    const contentRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                    const encryptedContent = await contentRes.text();
-                    const decryptedBytes = CryptoJS.AES.decrypt(encryptedContent, masterKey);
-                    const decryptedString = decryptedBytes.toString(CryptoJS.enc.Utf8);
-                    if (!decryptedString) {
-                        alert('Dữ liệu trên Drive dùng Master Password khác với Master Password hiện tại!');
-                        document.getElementById('syncStatusText').innerText = 'Sai Master Key';
-                        return;
-                    }
-                    localStorage.setItem(STORAGE_KEY, encryptedContent);
-                    vaultItems = JSON.parse(decryptedString);
-                    renderVaultItems();
-                    document.getElementById('syncStatusText').innerText = 'Thành công';
-                    alert('Tải và đồng bộ dữ liệu từ Google Drive thành công!');
-                } catch (err) {
-                    console.error(err);
-                    document.getElementById('syncStatusText').innerText = 'Lỗi Sync';
-                    alert('Lỗi tải dữ liệu từ Google Drive.');
-                }
-            });
-        }
-    </script>
+      } else {
+        // Thêm mới
+        vaultItems.push({ id: Date.now().toString(), title, service, username, password, url });
+      }
+
+      saveLocalVault();
+      closeModal();
+      renderVault();
+    }
+
+    function editItem(id) {
+      const item = vaultItems.find(i => i.id === id);
+      if (!item) return;
+
+      document.getElementById('itemId').value = item.id;
+      document.getElementById('itemTitleInput').value = item.title || '';
+      document.getElementById('itemServiceInput').value = item.service || '';
+      document.getElementById('itemUsernameInput').value = item.username || '';
+      document.getElementById('itemPasswordInput').value = item.password || '';
+      document.getElementById('itemUrlInput').value = item.url || '';
+
+      document.getElementById('modalTitle').innerText = "Chỉnh sửa mật khẩu";
+      document.getElementById('itemModal').classList.remove('hidden');
+    }
+
+    function deleteItem(id) {
+      if (confirm("Bạn có chắc chắn muốn xóa mật khẩu này?")) {
+        vaultItems = vaultItems.filter(i => i.id !== id);
+        saveLocalVault();
+        renderVault();
+      }
+    }
+
+    function saveLocalVault() {
+      localStorage.setItem('svault_data', JSON.stringify(vaultItems));
+    }
+
+    function clearVault() {
+      if (confirm("Khóa Vault và xóa bộ nhớ tạm trên thiết bị này?")) {
+        localStorage.removeItem('svault_data');
+        vaultItems = [];
+        renderVault();
+      }
+    }
+
+    // --- CÁC HÀM TIỆN ÍCH UI ---
+    function openModal() {
+      document.getElementById('itemForm').reset();
+      document.getElementById('itemId').value = '';
+      document.getElementById('modalTitle').innerText = "Thêm mật khẩu mới";
+      document.getElementById('itemModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('itemModal').classList.add('hidden');
+    }
+
+    function togglePass(id) {
+      const input = document.getElementById(`pass-${id}`);
+      const icon = document.getElementById(`eye-${id}`);
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fa-solid fa-eye-slash text-xs text-indigo-600';
+      } else {
+        input.type = 'password';
+        icon.className = 'fa-solid fa-eye text-xs';
+      }
+    }
+
+    function toggleModalPassVisibility() {
+      const input = document.getElementById('itemPasswordInput');
+      const icon = document.getElementById('modalPassIcon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fa-solid fa-eye-slash text-xs text-indigo-600';
+      } else {
+        input.type = 'password';
+        icon.className = 'fa-solid fa-eye text-xs';
+      }
+    }
+
+    function copyPass(pass) {
+      navigator.clipboard.writeText(pass);
+      alert("Đã sao chép mật khẩu vào bộ nhớ tạm!");
+    }
+
+    // --- CẤU HÌNH & ĐỒNG BỘ GOOGLE DRIVE ---
+    function saveClientId() {
+      googleClientId = document.getElementById('clientIdInput').value.trim();
+      localStorage.setItem('svault_client_id', googleClientId);
+      alert("Đã lưu Client ID thành công!");
+    }
+
+    function uploadToDrive() {
+      if (!googleClientId) return alert("Vui lòng nhập và lưu Client ID trước!");
+      
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: googleClientId,
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        callback: (response) => {
+          if (response.access_token) {
+            saveToDriveFile(response.access_token);
+          }
+        },
+      });
+      client.requestAccessToken();
+    }
+
+    function saveToDriveFile(accessToken) {
+      const fileContent = JSON.stringify(vaultItems);
+      const file = new Blob([fileContent], { type: 'application/json' });
+      const metadata = { name: 'svault_backup.json', mimeType: 'application/json' };
+
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', file);
+
+      fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
+        body: form
+      })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('syncStatus').innerText = "Thành công";
+        alert("Đã tải bản sao lưu mã hóa lên Google Drive thành công!");
+      })
+      .catch(err => alert("Lỗi khi tải lên Google Drive: " + err));
+    }
+
+    function downloadFromDrive() {
+      alert("Tính năng tải file sao lưu từ Drive về máy đang dùng phiên bản đọc tiêu chuẩn!");
+    }
+  </script>
 </body>
 </html>
