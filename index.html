@@ -40,7 +40,7 @@
         <div class="flex items-center justify-between pt-1">
           <label class="flex items-center gap-2 cursor-pointer select-none">
             <input type="checkbox" id="rememberMeCheckbox" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"/>
-            <span class="text-xs text-slate-600 font-medium">Ghi nhớ mật khẩu (Không cần nhập lại lần sau)</span>
+            <span class="text-xs text-slate-600 font-medium">Ghi nhớ mật khẩu (Không cần nhập lại)</span>
           </label>
         </div>
 
@@ -51,7 +51,7 @@
     </div>
   </div>
 
-  <!-- MAIN APP CONTAINER (Mặc định ẩn cho đến khi mở khóa) -->
+  <!-- MAIN APP CONTAINER -->
   <div id="appContainer" class="hidden">
     <!-- Header -->
     <header class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center shadow-lg">
@@ -98,7 +98,7 @@
             <i class="fa-brands fa-google-drive text-emerald-600 text-lg"></i>
             <h3>Đồng bộ Cloud Drive</h3>
           </div>
-          <p class="text-xs text-slate-500 leading-relaxed">Lưu trữ bản sao mã hóa trên Google Drive cá nhân của bạn.</p>
+          <p class="text-xs text-slate-500 leading-relaxed">Lưu trữ và đồng bộ bản sao mã hóa trên Google Drive của bạn.</p>
 
           <div>
             <label class="block text-xs font-medium text-slate-600 mb-1">Google OAuth Client ID</label>
@@ -209,13 +209,11 @@
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById('clientIdInput').value = googleClientId;
 
-      // Kiểm tra trạng thái thiết lập & đăng nhập
       if (!storedMasterPass) {
         document.getElementById('authTitle').innerText = "Thiết Lập Mật Khẩu Master";
         document.getElementById('authSubtitle').innerText = "Tạo mật khẩu Master để bảo vệ dữ liệu S-VAULT của bạn";
         document.getElementById('authBtn').innerHTML = `<i class="fa-solid fa-shield-halved"></i> Tạo Mật Khẩu Master`;
       } else if (rememberSession) {
-        // Nếu chọn "Ghi nhớ mật khẩu", tự động vào app ngay
         unlockApp();
       }
     });
@@ -227,14 +225,12 @@
       const remember = document.getElementById('rememberMeCheckbox').checked;
 
       if (!storedMasterPass) {
-        // Lần đầu khởi tạo Master Password
         localStorage.setItem('svault_master_pass', inputPass);
         storedMasterPass = inputPass;
         if (remember) localStorage.setItem('svault_remember_session', 'true');
         alert("Khởi tạo Mật khẩu Master thành công!");
         unlockApp();
       } else {
-        // Đăng nhập lại
         if (inputPass === storedMasterPass) {
           if (remember) {
             localStorage.setItem('svault_remember_session', 'true');
@@ -523,7 +519,7 @@
       alert(`Đã sao chép ${label} vào bộ nhớ tạm!`);
     }
 
-    // --- CẤU HÌNH & ĐỒNG BỘ GOOGLE DRIVE ---
+    // --- CẤU HÌNH & ĐỒNG BỘ GOOGLE DRIVE (TẢI LÊN & TẢI XUỐNG) ---
     function saveClientId() {
       googleClientId = document.getElementById('clientIdInput').value.trim();
       localStorage.setItem('svault_client_id', googleClientId);
@@ -546,29 +542,92 @@
     }
 
     function saveToDriveFile(accessToken) {
-      const fileContent = JSON.stringify(vaultItems);
-      const file = new Blob([fileContent], { type: 'application/json' });
-      const metadata = { name: 'svault_backup.json', mimeType: 'application/json' };
-
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      form.append('file', file);
-
-      fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-        method: 'POST',
-        headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
-        body: form
+      // Tìm xem file đã tồn tại trên Drive chưa
+      fetch('https://www.googleapis.com/drive/v3/files?q=name="svault_backup.json" and trashed=false', {
+        headers: { 'Authorization': 'Bearer ' + accessToken }
       })
       .then(res => res.json())
       .then(data => {
-        document.getElementById('syncStatus').innerText = "Thành công";
-        alert("Đã tải bản sao lưu mã hóa lên Google Drive thành công!");
+        const fileContent = JSON.stringify(vaultItems);
+        const file = new Blob([fileContent], { type: 'application/json' });
+
+        if (data.files && data.files.length > 0) {
+          // Đã có file -> Ghi đè file cũ
+          const fileId = data.files[0].id;
+          fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+            method: 'PATCH',
+            headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+            body: file
+          })
+          .then(() => {
+            document.getElementById('syncStatus').innerText = "Đã cập nhật";
+            alert("Đã cập nhật bản sao lưu mới nhất lên Google Drive!");
+          });
+        } else {
+          // Chưa có -> Tạo file mới
+          const metadata = { name: 'svault_backup.json', mimeType: 'application/json' };
+          const form = new FormData();
+          form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+          form.append('file', file);
+
+          fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + accessToken },
+            body: form
+          })
+          .then(() => {
+            document.getElementById('syncStatus').innerText = "Thành công";
+            alert("Đã tải bản sao lưu đầu tiên lên Google Drive thành công!");
+          });
+        }
       })
-      .catch(err => alert("Lỗi khi tải lên Google Drive: " + err));
+      .catch(err => alert("Lỗi kết nối Google Drive: " + err));
     }
 
+    // HÀM TẢI DỮ LIỆU TỪ DRIVE VỀ THIẾT BỊ (ĐIỆN THOẠI/MÁY TÍNH KHÁC)
     function downloadFromDrive() {
-      alert("Tính năng tải file sao lưu từ Drive về máy đang dùng phiên bản đọc tiêu chuẩn!");
+      if (!googleClientId) return alert("Vui lòng nhập và lưu Client ID trước!");
+
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: googleClientId,
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        callback: (response) => {
+          if (response.access_token) {
+            fetchFileFromDrive(response.access_token);
+          }
+        },
+      });
+      client.requestAccessToken();
+    }
+
+    function fetchFileFromDrive(accessToken) {
+      fetch('https://www.googleapis.com/drive/v3/files?q=name="svault_backup.json" and trashed=false', {
+        headers: { 'Authorization': 'Bearer ' + accessToken }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.files || data.files.length === 0) {
+          return alert("Không tìm thấy file sao lưu 'svault_backup.json' nào trên Google Drive của bạn!");
+        }
+
+        const fileId = data.files[0].id;
+        fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+          headers: { 'Authorization': 'Bearer ' + accessToken }
+        })
+        .then(res => res.json())
+        .then(downloadedItems => {
+          if (Array.isArray(downloadedItems)) {
+            vaultItems = downloadedItems;
+            saveLocalVault();
+            renderVault();
+            document.getElementById('syncStatus').innerText = "Đã đồng bộ";
+            alert(`Thành công! Đã tải về ${downloadedItems.length} mục mật khẩu từ Google Drive.`);
+          } else {
+            alert("Định dạng file sao lưu trên Drive không hợp lệ!");
+          }
+        });
+      })
+      .catch(err => alert("Lỗi khi tải từ Google Drive: " + err));
     }
   </script>
 </body>
