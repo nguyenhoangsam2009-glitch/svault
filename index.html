@@ -1,567 +1,364 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>S-VAULT - Zero-Knowledge Password Manager</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome Icons CDN -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <!-- CryptoJS Library for AES Encryption -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-  <!-- Google Identity Services API -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-    .font-mono { font-family: 'JetBrains Mono', monospace; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sổ Điểm Lớp 12 - Đồng Bộ Đám Mây</title>
+    <!-- Nhập thư viện Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #1b365d;
+            --accent: #c5a059;
+            --bg: #f4f6f9;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --border: #dcdfe6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1250px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        header h1 { margin: 0; font-size: 1.8rem; color: var(--accent); }
+        header p { margin: 5px 0 0 0; font-size: 0.95rem; opacity: 0.9; }
+
+        .sync-status {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            background: #e74c3c;
+            color: white;
+            font-weight: bold;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 15px 20px;
+            border-radius: 8px;
+            border-left: 5px solid var(--accent);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        .card h3 { margin: 0 0 8px 0; font-size: 0.9rem; color: #666; text-transform: uppercase; }
+        .card .value { font-size: 1.6rem; font-weight: bold; color: var(--primary); }
+
+        .table-container {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            overflow-x: auto;
+        }
+
+        table { width: 100%; border-collapse: collapse; min-width: 1000px; }
+        th, td { border: 1px solid var(--border); padding: 8px 4px; text-align: center; font-size: 0.85rem; }
+        th { background-color: var(--primary); color: white; font-weight: 600; }
+        th.group-header { background-color: #2c4d75; }
+        tr:nth-child(even) { background-color: #f9fafb; }
+
+        input[type="number"] {
+            width: 42px;
+            padding: 4px 2px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        input[type="number"]:focus { border-color: var(--primary); outline: none; background-color: #eef4fc; }
+        .dtb-cell { font-weight: bold; color: #d9534f; background-color: #fdf5f5; }
+
+        .actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-reset { background: #e0e0e0; color: #333; }
+        .btn-reset:hover { background: #d0d0d0; }
+    </style>
 </head>
-<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+<body>
 
-  <!-- TOP BAR / HEADER -->
-  <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
-          <i class="fa-solid fa-vault text-xl"></i>
-        </div>
-        <div>
-          <h1 class="font-bold text-lg leading-tight tracking-wide">S-VAULT</h1>
-          <p class="text-[11px] text-slate-400 font-medium">Zero-Knowledge Password Manager</p>
-        </div>
-      </div>
+<div class="container">
+    <header>
+        <h1>Nguyễn Hoàng Sâm (2026-2027) </h1>
+        <p>Lớp 12A3</p>
+        <div class="sync-status" id="status">🔴 Đang kết nối Firebase...</div>
+    </header>
 
-      <div class="flex items-center gap-3">
-        <span id="statusBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
-          <i class="fa-solid fa-lock text-[10px]"></i> Đã khóa
-        </span>
-        <button id="lockBtn" onclick="lockVault()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3.5 py-2 rounded-xl border border-slate-700 transition flex items-center gap-1.5">
-          <i class="fa-solid fa-right-from-bracket"></i> Khóa Vault
-        </button>
-      </div>
+    <div class="summary-cards">
+        <div class="card"><h3>ĐTB Học Kỳ I</h3><div class="value" id="dtb-hk1">0.0</div></div>
+        <div class="card"><h3>ĐTB Học Kỳ II</h3><div class="value" id="dtb-hk2">0.0</div></div>
+        <div class="card"><h3>ĐTB Cả Năm (CN)</h3><div class="value" id="dtb-cn">0.0</div></div>
+        <div class="card"><h3>Xếp Loại Học Lực</h3><div class="value" id="hoc-luc" style="font-size: 1.2rem;">Chưa xếp loại</div></div>
     </div>
-  </header>
 
-  <!-- MAN HINH MO KHOA (LOCKED SCREEN) -->
-  <div id="lockedScreen" class="max-w-md mx-auto my-auto p-4 w-full">
-    <div class="bg-white rounded-3xl p-8 shadow-xl border border-slate-200/80 text-center space-y-6">
-      <div class="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl shadow-inner">
-        <i class="fa-solid fa-shield-halved text-3xl"></i>
-      </div>
-      <div>
-        <h2 class="text-xl font-bold text-slate-800">Mở Khóa Kho S-Vault</h2>
-        <p class="text-xs text-slate-500 mt-1">Nhập Mật Khẩu Khóa chính (Master Password) để giải mã dữ liệu của bạn.</p>
-      </div>
-      <form onsubmit="handleUnlock(event)" class="space-y-4">
-        <div>
-          <input type="password" id="masterPasswordInput" required placeholder="Nhập Master Password..." class="w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-center text-slate-800 font-mono text-base bg-slate-50">
-        </div>
-        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-indigo-600/25 transition">
-          Mở Khóa Dữ Liệu
-        </button>
-      </form>
-      <p class="text-[11px] text-slate-400 pt-2 border-t border-slate-100">
-        <i class="fa-solid fa-lock text-[10px] mr-1"></i>Dữ liệu được mã hóa mã hóa AES-256 an toàn.
-      </p>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th rowspan="2" style="width: 140px;">Môn Học</th>
+                    <th colspan="7" class="group-header">HỌC KỲ I</th>
+                    <th colspan="7" class="group-header">HỌC KỲ II</th>
+                    <th rowspan="2" style="width: 60px;">CẢ NĂM</th>
+                </tr>
+                <tr>
+                    <th>TX1</th><th>TX2</th><th>TX3</th><th>TX4</th><th>GK (x2)</th><th>CK (x3)</th><th>ĐTB HK1</th>
+                    <th>TX1</th><th>TX2</th><th>TX3</th><th>TX4</th><th>GK (x2)</th><th>CK (x3)</th><th>ĐTB HK2</th>
+                </tr>
+            </thead>
+            <tbody id="scores-body"></tbody>
+        </table>
     </div>
-  </div>
 
-  <!-- MAIN UNLOCKED CONTENT -->
-  <main id="unlockedScreen" class="hidden max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 w-full">
-
-    <!-- LEFT COLUMN -->
-    <section class="lg:col-span-4 space-y-6">
-      <!-- TỔNG QUAN -->
-      <div class="grid grid-cols-2 gap-4">
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80">
-          <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Tổng quan</p>
-          <p id="totalCount" class="text-3xl font-extrabold text-slate-800 mt-1">0</p>
-          <p class="text-xs text-slate-500 mt-0.5">Mục đã lưu</p>
-        </div>
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80">
-          <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Trạng thái Cloud</p>
-          <p id="syncStatusText" class="text-xs font-bold text-slate-600 mt-2 truncate">Chưa đồng bộ</p>
-        </div>
-      </div>
-
-      <!-- THÊM MẬT KHẨU -->
-      <button onclick="openModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-4 rounded-2xl shadow-lg shadow-indigo-600/25 transition flex items-center justify-center gap-2">
-        <i class="fa-solid fa-plus text-sm"></i> Thêm mật khẩu mới
-      </button>
-
-      <!-- ĐỒNG BỘ GOOGLE DRIVE -->
-      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
-        <div class="flex items-center gap-2.5 text-emerald-600 font-bold text-base">
-          <i class="fa-brands fa-google-drive text-lg"></i>
-          <h2>Đồng bộ Cloud Drive</h2>
-        </div>
-        <p class="text-xs text-slate-500 leading-relaxed">
-          Lưu trữ bản sao mã hóa an toàn trên Google Drive cá nhân của bạn.
-        </p>
-
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1.5">Google OAuth Client ID</label>
-          <input type="text" id="googleClientIdInput" placeholder="xxxx.apps.googleusercontent.com" class="w-full text-xs font-mono p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50">
-          <button onclick="saveClientId()" class="w-full mt-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2 rounded-xl transition border border-slate-200">
-            Lưu cấu hình Client ID
-          </button>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-          <button onclick="uploadToDrive()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm">
-            <i class="fa-solid fa-cloud-arrow-up"></i> Tải lên Drive
-          </button>
-          <button onclick="downloadFromDrive()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm">
-            <i class="fa-solid fa-cloud-arrow-down"></i> Tải từ Drive
-          </button>
-        </div>
-      </div>
-
-      <!-- SAO LƯU FILE CỤC BỘ (JSON) -->
-      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between text-xs text-slate-600">
-        <span class="font-medium">Sao lưu tệp (.json):</span>
-        <div class="flex items-center gap-2">
-          <button onclick="exportJSON()" class="text-indigo-600 font-bold hover:underline">Xuất File</button>
-          <span class="text-slate-300">|</span>
-          <button onclick="triggerImportJSON()" class="text-indigo-600 font-bold hover:underline">Nhập File</button>
-          <input type="file" id="importFileInput" class="hidden" accept=".json" onchange="importJSON(event)">
-        </div>
-      </div>
-    </section>
-
-    <!-- RIGHT COLUMN -->
-    <section class="lg:col-span-8 space-y-4">
-      <div class="relative">
-        <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-        <input type="text" id="searchInput" oninput="renderVault()" placeholder="Tìm kiếm tài khoản, dịch vụ..." class="w-full pl-11 pr-4 py-3 bg-white border border-slate-200/80 rounded-2xl shadow-sm text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
-      </div>
-
-      <div id="vaultList" class="space-y-3">
-        <!-- Render danh sách qua JS -->
-      </div>
-    </section>
-
-  </main>
-
-  <!-- MODAL THÊM / SỬA -->
-  <div id="itemModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-        <h3 id="modalTitle" class="font-bold text-slate-800 text-lg">Thêm tài khoản mới</h3>
-        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
-      </div>
-
-      <input type="hidden" id="editItemId">
-      
-      <div class="space-y-3">
-        <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">Tên gợi nhớ / Tiêu đề *</label>
-          <input type="text" id="itemTitle" placeholder="Ví dụ: Hoàng Sâm, Nick Phụ..." class="w-full text-sm p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">Dịch vụ / Ứng dụng *</label>
-          <input type="text" id="itemService" placeholder="Ví dụ: Facebook, Google, Tiktok..." class="w-full text-sm p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">Đường dẫn Web (URL)</label>
-          <input type="text" id="itemUrl" placeholder="https://facebook.com/..." class="w-full text-sm p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">Tên đăng nhập / Email / SĐT</label>
-          <input type="text" id="itemUsername" placeholder="Ví dụ: 0394693107" class="w-full text-sm p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">Mật khẩu *</label>
-          <input type="text" id="itemPassword" placeholder="Nhập mật khẩu..." class="w-full text-sm font-mono p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
-        </div>
-      </div>
-
-      <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-        <button onclick="closeModal()" class="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">Hủy</button>
-        <button onclick="saveItem()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition">Lưu thông tin</button>
-      </div>
+    <div class="actions">
+        <button class="btn btn-reset" onclick="resetData()">Xóa toàn bộ dữ liệu Cloud</button>
     </div>
-  </div>
+</div>
 
-  <!-- JAVASCRIPT LOGIC MA HOA & DONG BO -->
-  <script>
-    let masterPassword = "";
-    let vaultItems = [];
-    let googleAccessToken = null;
+<script>
+// CẤU HÌNH FIREBASE CỦA HOÀNG SÂM ĐÃ ĐƯỢC CÀI ĐẶT
+const firebaseConfig = {
+    apiKey: "AIzaSyDQ13T40aX_CYpGpaNIC06EGu6EL9qhXr4",
+    authDomain: "sodiem-b2d84.firebaseapp.com",
+    databaseURL: "https://sodiem-b2d84-default-rtdb.firebaseio.com",
+    projectId: "sodiem-b2d84",
+    storageBucket: "sodiem-b2d84.firebasestorage.app",
+    messagingSenderId: "322544702655",
+    appId: "1:322544702655:web:0387d2a9f5eec850b2a20a",
+    measurementId: "G-3G8GK57FEG"
+};
 
-    // Khoi tao va kiem tra Client ID
-    window.onload = function() {
-      const savedCid = localStorage.getItem('svault_client_id');
-      if (savedCid) {
-        document.getElementById('googleClientIdInput').value = savedCid;
-      }
-    };
+// Khởi tạo Firebase
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+const scoresRef = database.ref('user_scores');
 
-    // --- HE THONG MA HOA & MO KHOA ---
-    function handleUnlock(e) {
-      e.preventDefault();
-      const inputPass = document.getElementById('masterPasswordInput').value;
-      if (!inputPass) return;
+const subjects = [
+    { id: 'toan', name: 'Toán học', type: 'score' },
+    { id: 'van', name: 'Ngữ văn', type: 'score' },
+    { id: 'anh', name: 'Ngoại ngữ', type: 'score' },
+    { id: 'ly', name: 'Vật lí', type: 'score' },
+    { id: 'hoa', name: 'Hóa học', type: 'score' },
+    { id: 'sinh', name: 'Sinh học', type: 'score' },
+    { id: 'su', name: 'Lịch sử', type: 'score' },
+    { id: 'tin', name: 'Tin học', type: 'score' },
+    { id: 'qtm', name: 'GD Quốc phòng & AN', type: 'score' },
+    { id: 'gdtc', name: 'Giáo dục thể chất', type: 'eval' }
+];
 
-      const encryptedData = localStorage.getItem('svault_encrypted_data');
-      
-      if (!encryptedData) {
-        // Kho moi khoi tao
-        masterPassword = inputPass;
-        vaultItems = [
-          { id: '1', title: 'Hoàng Sâm', service: 'Facebook', url: 'https://facebook.com', username: '0394693107', password: 'Password123@' }
-        ];
-        saveAndEncrypt();
-        showUnlockedView();
-      } else {
-        // Giai ma kho
-        try {
-          const bytes = CryptoJS.AES.decrypt(encryptedData, inputPass);
-          const decryptedText = bytes.toString(CryptoJS.enc.Utf8);
-          if (!decryptedText) throw new Error("Sai mật khẩu");
-          
-          vaultItems = JSON.parse(decryptedText);
-          masterPassword = inputPass;
-          showUnlockedView();
-        } catch (err) {
-          alert("Sai Mật Khẩu Master! Vui lòng thử lại.");
-          document.getElementById('masterPasswordInput').value = "";
+let isRemoteUpdate = false;
+
+function initTable() {
+    const tbody = document.getElementById('scores-body');
+    tbody.innerHTML = '';
+
+    subjects.forEach(sub => {
+        const tr = document.createElement('tr');
+        if (sub.type === 'score') {
+            tr.innerHTML = `
+                <td style="text-align: left; font-weight: 600;">${sub.name}</td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_tx1_1" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_tx2_1" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_tx3_1" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_tx4_1" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_gk_1" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_ck_1" oninput="onInputChanged()"></td>
+                <td class="dtb-cell" id="${sub.id}_dtb_1">-</td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_tx1_2" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_tx2_2" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_tx3_2" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_tx4_2" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_gk_2" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_ck_2" oninput="onInputChanged()"></td>
+                <td class="dtb-cell" id="${sub.id}_dtb_2">-</td>
+                <td class="dtb-cell" id="${sub.id}_dtb_cn" style="color: var(--primary);">-</td>
+            `;
+        } else {
+            tr.innerHTML = `
+                <td style="text-align: left; font-weight: 600;">${sub.name}</td>
+                <td colspan="6">
+                    <select id="${sub.id}_eval_1" onchange="onInputChanged()" style="padding: 4px;">
+                        <option value="">-- HK1 --</option>
+                        <option value="D">Đạt (D)</option>
+                        <option value="CD">Chưa Đạt (CD)</option>
+                    </select>
+                </td>
+                <td class="dtb-cell" id="${sub.id}_dtb_1">-</td>
+                <td colspan="6">
+                    <select id="${sub.id}_eval_2" onchange="onInputChanged()" style="padding: 4px;">
+                        <option value="">-- HK2 --</option>
+                        <option value="D">Đạt (D)</option>
+                        <option value="CD">Chưa Đạt (CD)</option>
+                    </select>
+                </td>
+                <td class="dtb-cell" id="${sub.id}_dtb_2">-</td>
+                <td class="dtb-cell" id="${sub.id}_dtb_cn">-</td>
+            `;
         }
-      }
+        tbody.appendChild(tr);
+    });
+}
+
+function getVal(id) {
+    const el = document.getElementById(id);
+    if (!el || el.value === '') return null;
+    const val = parseFloat(el.value);
+    return isNaN(val) ? null : val;
+}
+
+function computeSemesterScore(subId, term) {
+    let txSum = 0, txCount = 0;
+    for (let i = 1; i <= 4; i++) {
+        const val = getVal(`${subId}_tx${i}_${term}`);
+        if (val !== null) { txSum += val; txCount++; }
     }
+    const gk = getVal(`${subId}_gk_${term}`);
+    const ck = getVal(`${subId}_ck_${term}`);
 
-    function showUnlockedView() {
-      document.getElementById('lockedScreen').classList.add('hidden');
-      document.getElementById('unlockedScreen').classList.remove('hidden');
-      document.getElementById('lockBtn').classList.remove('hidden');
-      
-      const badge = document.getElementById('statusBadge');
-      badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-      badge.innerHTML = `<i class="fa-solid fa-lock-open text-[10px]"></i> Đã mở khóa`;
-
-      renderVault();
+    if (txCount > 0 && gk !== null && ck !== null) {
+        return (txSum + (gk * 2) + (ck * 3)) / (txCount + 2 + 3);
     }
+    return null;
+}
 
-    function lockVault() {
-      masterPassword = "";
-      vaultItems = [];
-      document.getElementById('masterPasswordInput').value = "";
-      document.getElementById('unlockedScreen').classList.add('hidden');
-      document.getElementById('lockedScreen').classList.remove('hidden');
-      document.getElementById('lockBtn').classList.add('hidden');
+function calculate() {
+    let sumDtbHK1 = 0, countHK1 = 0;
+    let sumDtbHK2 = 0, countHK2 = 0;
+    let sumDtbCN = 0, countCN = 0;
+    let listDtbCN = [];
+    let allEvalPass = true;
 
-      const badge = document.getElementById('statusBadge');
-      badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20";
-      badge.innerHTML = `<i class="fa-solid fa-lock text-[10px]"></i> Đã khóa`;
-    }
+    subjects.forEach(sub => {
+        if (sub.type === 'score') {
+            const dtb1 = computeSemesterScore(sub.id, 1);
+            const dtb2 = computeSemesterScore(sub.id, 2);
 
-    function saveAndEncrypt() {
-      if (!masterPassword) return;
-      const jsonString = JSON.stringify(vaultItems);
-      const encrypted = CryptoJS.AES.encrypt(jsonString, masterPassword).toString();
-      localStorage.setItem('svault_encrypted_data', encrypted);
-      renderVault();
-    }
+            if (dtb1 !== null) {
+                document.getElementById(`${sub.id}_dtb_1`).innerText = dtb1.toFixed(1);
+                sumDtbHK1 += dtb1; countHK1++;
+            } else document.getElementById(`${sub.id}_dtb_1`).innerText = '-';
 
-    // --- HIEN THI DANH SACH ---
-    function renderVault() {
-      const container = document.getElementById('vaultList');
-      const search = document.getElementById('searchInput').value.toLowerCase();
-      container.innerHTML = '';
+            if (dtb2 !== null) {
+                document.getElementById(`${sub.id}_dtb_2`).innerText = dtb2.toFixed(1);
+                sumDtbHK2 += dtb2; countHK2++;
+            } else document.getElementById(`${sub.id}_dtb_2`).innerText = '-';
 
-      const filtered = vaultItems.filter(item => 
-        (item.title && item.title.toLowerCase().includes(search)) ||
-        (item.service && item.service.toLowerCase().includes(search)) ||
-        (item.username && item.username.toLowerCase().includes(search))
-      );
+            if (dtb1 !== null && dtb2 !== null) {
+                const dtbCN = (dtb1 + (dtb2 * 2)) / 3;
+                document.getElementById(`${sub.id}_dtb_cn`).innerText = dtbCN.toFixed(1);
+                sumDtbCN += dtbCN; countCN++; listDtbCN.push(dtbCN);
+            } else document.getElementById(`${sub.id}_dtb_cn`).innerText = '-';
+        } else {
+            const ev1 = document.getElementById(`${sub.id}_eval_1`).value;
+            const ev2 = document.getElementById(`${sub.id}_eval_2`).value;
 
-      document.getElementById('totalCount').innerText = vaultItems.length;
+            document.getElementById(`${sub.id}_dtb_1`).innerText = ev1 ? (ev1 === 'D' ? 'Đạt' : 'C.Đạt') : '-';
+            document.getElementById(`${sub.id}_dtb_2`).innerText = ev2 ? (ev2 === 'D' ? 'Đạt' : 'C.Đạt') : '-';
 
-      if (filtered.length === 0) {
-        container.innerHTML = `
-          <div class="bg-white p-8 rounded-2xl text-center border border-slate-200/80">
-            <i class="fa-solid fa-folder-open text-3xl text-slate-300 mb-2"></i>
-            <p class="text-sm text-slate-500 font-medium">Không tìm thấy mật khẩu phù hợp.</p>
-          </div>
-        `;
-        return;
-      }
-
-      filtered.forEach((item) => {
-        const serviceLower = (item.service || '').toLowerCase().trim();
-        let iconClass = "fa-solid fa-globe";
-
-        if (serviceLower.includes('facebook') || serviceLower.includes('fb')) {
-          iconClass = "fa-brands fa-facebook text-blue-600";
-        } else if (serviceLower.includes('google') || serviceLower.includes('gmail')) {
-          iconClass = "fa-brands fa-google text-red-500";
-        } else if (serviceLower.includes('tiktok')) {
-          iconClass = "fa-brands fa-tiktok text-slate-900";
-        } else if (serviceLower.includes('zalo')) {
-          iconClass = "fa-solid fa-comment text-blue-500";
+            if (ev1 === 'CD' || ev2 === 'CD') allEvalPass = false;
+            if (ev1 && ev2) {
+                const passCN = (ev1 === 'D' && ev2 === 'D');
+                document.getElementById(`${sub.id}_dtb_cn`).innerText = passCN ? 'Đạt' : 'C.Đạt';
+                if (!passCN) allEvalPass = false;
+            } else document.getElementById(`${sub.id}_dtb_cn`).innerText = '-';
         }
+    });
 
-        let targetUrl = item.url ? item.url.trim() : '';
-        if (!targetUrl && (serviceLower.includes('facebook') || serviceLower.includes('fb'))) {
-          targetUrl = 'https://facebook.com';
-        }
-        if (targetUrl && !targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-          targetUrl = 'https://' + targetUrl;
-        }
+    document.getElementById('dtb-hk1').innerText = countHK1 > 0 ? (sumDtbHK1 / countHK1).toFixed(1) : '0.0';
+    document.getElementById('dtb-hk2').innerText = countHK2 > 0 ? (sumDtbHK2 / countHK2).toFixed(1) : '0.0';
+    document.getElementById('dtb-cn').innerText = countCN > 0 ? (sumDtbCN / countCN).toFixed(1) : '0.0';
 
-        const linkProps = targetUrl ? `href="${targetUrl}" target="_blank" rel="noopener noreferrer"` : 'href="javascript:void(0)"';
-
-        const card = document.createElement('div');
-        card.className = "bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 hover:shadow-md transition flex items-center justify-between gap-4";
-        
-        card.innerHTML = `
-          <div class="flex items-center gap-3.5 min-w-0">
-            <a ${linkProps} class="w-11 h-11 bg-slate-100 rounded-xl flex items-center justify-center text-2xl shrink-0 hover:scale-110 transition cursor-pointer" title="Mở trang web">
-              <i class="${iconClass}"></i>
-            </a>
-            <div class="min-w-0">
-              <div class="flex items-center gap-2">
-                <a ${linkProps} class="font-bold text-slate-800 text-base truncate hover:text-indigo-600 transition cursor-pointer">
-                  ${item.title || item.service || 'Tài khoản không tên'}
-                </a>
-                ${item.service ? `<span class="bg-slate-100 text-slate-500 text-[10px] font-semibold px-2 py-0.5 rounded-md uppercase">${item.service}</span>` : ''}
-              </div>
-              <p class="text-xs text-slate-500 truncate font-mono mt-0.5">${item.username || 'Chưa có tên đăng nhập'}</p>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-2 shrink-0">
-            <div class="relative bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex items-center gap-2">
-              <input type="password" id="pass-${item.id}" value="${item.password}" readonly class="bg-transparent text-xs font-mono outline-none w-28 text-slate-700"/>
-              <button onclick="togglePass('${item.id}')" class="text-slate-400 hover:text-slate-600"><i id="eye-${item.id}" class="fa-solid fa-eye text-xs"></i></button>
-            </div>
-            <button onclick="copyPass('${item.password}')" title="Sao chép" class="p-2 text-slate-400 hover:text-indigo-600 transition"><i class="fa-solid fa-copy"></i></button>
-            <button onclick="editItem('${item.id}')" title="Sửa" class="p-2 text-slate-400 hover:text-amber-600 transition"><i class="fa-solid fa-pen-to-square"></i></button>
-            <button onclick="deleteItem('${item.id}')" title="Xóa" class="p-2 text-slate-400 hover:text-red-600 transition"><i class="fa-solid fa-trash-can"></i></button>
-          </div>
-        `;
-        container.appendChild(card);
-      });
+    if (countCN === subjects.filter(s => s.type === 'score').length) {
+        document.getElementById('hoc-luc').innerText = classifyHocLuc(parseFloat(document.getElementById('dtb-cn').innerText), listDtbCN, allEvalPass);
+    } else {
+        document.getElementById('hoc-luc').innerText = 'Chưa đủ điểm';
     }
+}
 
-    // --- THAO TAC DULIEU ---
-    function togglePass(id) {
-      const input = document.getElementById(`pass-${id}`);
-      const eye = document.getElementById(`eye-${id}`);
-      if (input.type === 'password') {
-        input.type = 'text';
-        eye.classList.replace('fa-eye', 'fa-eye-slash');
-      } else {
-        input.type = 'password';
-        eye.classList.replace('fa-eye-slash', 'fa-eye');
-      }
+function classifyHocLuc(avg, scores, evalPass) {
+    if (!evalPass) return 'Chưa Đạt';
+    const minScore = Math.min(...scores);
+    const countGt8 = scores.filter(s => s >= 8.0).length;
+    const countGt65 = scores.filter(s => s >= 6.5).length;
+
+    if (avg >= 6.5 && minScore >= 5.0 && countGt8 >= 6) return 'TỐT';
+    if (avg >= 5.0 && minScore >= 3.5 && countGt65 >= 6) return 'KHÁ';
+    if (avg >= 3.5 && minScore >= 2.0) return 'ĐẠT';
+    return 'CHƯA ĐẠT';
+}
+
+function onInputChanged() {
+    calculate();
+    if (isRemoteUpdate) return;
+
+    const data = {};
+    const inputs = document.querySelectorAll('input, select');
+    inputs.forEach(input => {
+        if (input.value !== '') data[input.id] = input.value;
+    });
+
+    scoresRef.set(data);
+}
+
+scoresRef.on('value', (snapshot) => {
+    document.getElementById('status').innerText = '🟢 Đã kết nối Cloud Realtime';
+    document.getElementById('status').style.background = '#27ae60';
+    
+    const data = snapshot.val() || {};
+    isRemoteUpdate = true;
+
+    const inputs = document.querySelectorAll('input, select');
+    inputs.forEach(input => input.value = '');
+
+    Object.keys(data).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = data[id];
+    });
+
+    calculate();
+    isRemoteUpdate = false;
+}, (error) => {
+    document.getElementById('status').innerText = '🔴 Chưa bật Database (Vào Realtime Database trên Firebase để bật)';
+    document.getElementById('status').style.background = '#e74c3c';
+});
+
+function resetData() {
+    if (confirm("Bạn có chắc muốn xóa toàn bộ điểm trên Cloud không?")) {
+        scoresRef.remove();
     }
+}
 
-    function copyPass(pass) {
-      navigator.clipboard.writeText(pass);
-      alert('Đã sao chép mật khẩu!');
-    }
+initTable();
+</script>
 
-    function deleteItem(id) {
-      if (confirm('Bạn có chắc muốn xóa mục này?')) {
-        vaultItems = vaultItems.filter(item => item.id !== id);
-        saveAndEncrypt();
-      }
-    }
-
-    function openModal(editId = null) {
-      document.getElementById('itemModal').classList.remove('hidden');
-      document.getElementById('itemModal').classList.add('flex');
-      if (editId) {
-        const item = vaultItems.find(i => i.id === editId);
-        document.getElementById('modalTitle').innerText = 'Chỉnh sửa tài khoản';
-        document.getElementById('editItemId').value = item.id;
-        document.getElementById('itemTitle').value = item.title || '';
-        document.getElementById('itemService').value = item.service || '';
-        document.getElementById('itemUrl').value = item.url || '';
-        document.getElementById('itemUsername').value = item.username || '';
-        document.getElementById('itemPassword').value = item.password || '';
-      } else {
-        document.getElementById('modalTitle').innerText = 'Thêm tài khoản mới';
-        document.getElementById('editItemId').value = '';
-        document.getElementById('itemTitle').value = '';
-        document.getElementById('itemService').value = '';
-        document.getElementById('itemUrl').value = '';
-        document.getElementById('itemUsername').value = '';
-        document.getElementById('itemPassword').value = '';
-      }
-    }
-
-    function closeModal() {
-      document.getElementById('itemModal').classList.add('hidden');
-      document.getElementById('itemModal').classList.remove('flex');
-    }
-
-    function editItem(id) { openModal(id); }
-
-    function saveItem() {
-      const id = document.getElementById('editItemId').value;
-      const title = document.getElementById('itemTitle').value.trim();
-      const service = document.getElementById('itemService').value.trim();
-      const url = document.getElementById('itemUrl').value.trim();
-      const username = document.getElementById('itemUsername').value.trim();
-      const password = document.getElementById('itemPassword').value.trim();
-
-      if (!title && !service) { alert('Vui lòng nhập Tiêu đề hoặc Dịch vụ!'); return; }
-      if (!password) { alert('Vui lòng nhập Mật khẩu!'); return; }
-
-      if (id) {
-        const index = vaultItems.findIndex(i => i.id === id);
-        vaultItems[index] = { id, title, service, url, username, password };
-      } else {
-        vaultItems.push({ id: Date.now().toString(), title, service, url, username, password });
-      }
-
-      saveAndEncrypt();
-      closeModal();
-    }
-
-    // --- SAO LƯU FILE CỤC BỘ (JSON) ---
-    function exportJSON() {
-      const encryptedData = localStorage.getItem('svault_encrypted_data');
-      if (!encryptedData) { alert("Không có dữ liệu để xuất!"); return; }
-      const blob = new Blob([encryptedData], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `svault_backup_${new Date().toISOString().slice(0,10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function triggerImportJSON() {
-      document.getElementById('importFileInput').click();
-    }
-
-    function importJSON(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const content = e.target.result;
-        try {
-          const bytes = CryptoJS.AES.decrypt(content, masterPassword);
-          const decryptedText = bytes.toString(CryptoJS.enc.Utf8);
-          if (!decryptedText) throw new Error();
-          vaultItems = JSON.parse(decryptedText);
-          saveAndEncrypt();
-          alert("Nhập dữ liệu thành công!");
-        } catch(err) {
-          alert("Lỗi: Mật khẩu Master hiện tại không giải mã được file sao lưu này!");
-        }
-      };
-      reader.readAsText(file);
-    }
-
-    // --- ĐỒNG BỘ GOOGLE DRIVE (API INTEGRATION) ---
-    function saveClientId() {
-      const cid = document.getElementById('googleClientIdInput').value.trim();
-      if (cid) {
-        localStorage.setItem('svault_client_id', cid);
-        alert('Đã lưu Google Client ID thành công!');
-      } else {
-        alert('Vui lòng nhập Client ID!');
-      }
-    }
-
-    function requestGoogleAuth(callback) {
-      const clientId = localStorage.getItem('svault_client_id');
-      if (!clientId) {
-        alert("Vui lòng nhập và Lưu Google OAuth Client ID trước!");
-        return;
-      }
-
-      const client = google.accounts.oauth2.initTokenClient({
-        client_id: clientId,
-        scope: 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.file',
-        callback: (response) => {
-          if (response.access_token) {
-            googleAccessToken = response.access_token;
-            document.getElementById('syncStatusText').innerText = "Đã kết nối";
-            document.getElementById('syncStatusText').className = "text-xs font-bold text-emerald-600 mt-2 truncate";
-            callback();
-          } else {
-            alert("Đăng nhập Google thất bại!");
-          }
-        },
-      });
-      client.requestAccessToken();
-    }
-
-    function uploadToDrive() {
-      if (!googleAccessToken) {
-        requestGoogleAuth(uploadToDrive);
-        return;
-      }
-      const encryptedData = localStorage.getItem('svault_encrypted_data');
-      if (!encryptedData) { alert("Chưa có dữ liệu để tải lên!"); return; }
-
-      // Tìm file cũ trên Drive
-      fetch('https://www.googleapis.com/drive/v3/files?q=name="s_vault_sync.json"', {
-        headers: { Authorization: `Bearer ${googleAccessToken}` }
-      })
-      .then(res => res.json())
-      .then(data => {
-        const fileId = data.files && data.files.length > 0 ? data.files[0].id : null;
-        const metadata = { name: 's_vault_sync.json', mimeType: 'application/json' };
-        const form = new FormData();
-        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-        form.append('file', new Blob([encryptedData], { type: 'application/json' }));
-
-        let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-        let method = 'POST';
-        if (fileId) {
-          url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`;
-          method = 'PATCH';
-        }
-
-        return fetch(url, { method, headers: { Authorization: `Bearer ${googleAccessToken}` }, body: form });
-      })
-      .then(res => res.json())
-      .then(() => alert("Đã sao lưu lên Google Drive thành công!"))
-      .catch(err => alert("Lỗi khi tải lên Drive: " + err.message));
-    }
-
-    function downloadFromDrive() {
-      if (!googleAccessToken) {
-        requestGoogleAuth(downloadFromDrive);
-        return;
-      }
-
-      fetch('https://www.googleapis.com/drive/v3/files?q=name="s_vault_sync.json"', {
-        headers: { Authorization: `Bearer ${googleAccessToken}` }
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (!data.files || data.files.length === 0) throw new Error("Không tìm thấy file s_vault_sync.json trên Drive!");
-        const fileId = data.files[0].id;
-        return fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-          headers: { Authorization: `Bearer ${googleAccessToken}` }
-        });
-      })
-      .then(res => res.text())
-      .then(content => {
-        try {
-          const bytes = CryptoJS.AES.decrypt(content, masterPassword);
-          const decryptedText = bytes.toString(CryptoJS.enc.Utf8);
-          if (!decryptedText) throw new Error();
-          vaultItems = JSON.parse(decryptedText);
-          saveAndEncrypt();
-          alert("Đã đồng bộ thành công dữ liệu từ Google Drive!");
-        } catch(e) {
-          alert("Đã tải bản sao từ Drive về nhưng không giải mã được! Kiểm tra lại Master Password.");
-        }
-      })
-      .catch(err => alert("Lỗi tải từ Drive: " + err.message));
-    }
-  </script>
 </body>
 </html>
