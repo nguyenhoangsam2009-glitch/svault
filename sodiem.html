@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sổ Điểm Lớp 12 - Đồng Bộ Đám Mây</title>
+    <!-- Nhập thư viện Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #1b365d;
+            --accent: #c5a059;
+            --bg: #f4f6f9;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --border: #dcdfe6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1250px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        header h1 { margin: 0; font-size: 1.8rem; color: var(--accent); }
+        header p { margin: 5px 0 0 0; font-size: 0.95rem; opacity: 0.9; }
+
+        .sync-status {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            background: #e74c3c;
+            color: white;
+            font-weight: bold;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 15px 20px;
+            border-radius: 8px;
+            border-left: 5px solid var(--accent);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        .card h3 { margin: 0 0 8px 0; font-size: 0.9rem; color: #666; text-transform: uppercase; }
+        .card .value { font-size: 1.6rem; font-weight: bold; color: var(--primary); }
+
+        .table-container {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            overflow-x: auto;
+        }
+
+        table { width: 100%; border-collapse: collapse; min-width: 1000px; }
+        th, td { border: 1px solid var(--border); padding: 8px 4px; text-align: center; font-size: 0.85rem; }
+        th { background-color: var(--primary); color: white; font-weight: 600; }
+        th.group-header { background-color: #2c4d75; }
+        tr:nth-child(even) { background-color: #f9fafb; }
+
+        input[type="number"] {
+            width: 42px;
+            padding: 4px 2px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        input[type="number"]:focus { border-color: var(--primary); outline: none; background-color: #eef4fc; }
+        .dtb-cell { font-weight: bold; color: #d9534f; background-color: #fdf5f5; }
+
+        .actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-reset { background: #e0e0e0; color: #333; }
+        .btn-reset:hover { background: #d0d0d0; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Nguyễn Hoàng Sâm (2026-2027) </h1>
+        <p>Lớp 12A3</p>
+        <div class="sync-status" id="status">🔴 Đang kết nối Firebase...</div>
+    </header>
+
+    <div class="summary-cards">
+        <div class="card"><h3>ĐTB Học Kỳ I</h3><div class="value" id="dtb-hk1">0.0</div></div>
+        <div class="card"><h3>ĐTB Học Kỳ II</h3><div class="value" id="dtb-hk2">0.0</div></div>
+        <div class="card"><h3>ĐTB Cả Năm (CN)</h3><div class="value" id="dtb-cn">0.0</div></div>
+        <div class="card"><h3>Xếp Loại Học Lực</h3><div class="value" id="hoc-luc" style="font-size: 1.2rem;">Chưa xếp loại</div></div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th rowspan="2" style="width: 140px;">Môn Học</th>
+                    <th colspan="7" class="group-header">HỌC KỲ I</th>
+                    <th colspan="7" class="group-header">HỌC KỲ II</th>
+                    <th rowspan="2" style="width: 60px;">CẢ NĂM</th>
+                </tr>
+                <tr>
+                    <th>TX1</th><th>TX2</th><th>TX3</th><th>TX4</th><th>GK (x2)</th><th>CK (x3)</th><th>ĐTB HK1</th>
+                    <th>TX1</th><th>TX2</th><th>TX3</th><th>TX4</th><th>GK (x2)</th><th>CK (x3)</th><th>ĐTB HK2</th>
+                </tr>
+            </thead>
+            <tbody id="scores-body"></tbody>
+        </table>
+    </div>
+
+    <div class="actions">
+        <button class="btn btn-reset" onclick="resetData()">Xóa toàn bộ dữ liệu Cloud</button>
+    </div>
+</div>
+
+<script>
+// CẤU HÌNH FIREBASE CỦA HOÀNG SÂM ĐÃ ĐƯỢC CÀI ĐẶT
+const firebaseConfig = {
+    apiKey: "AIzaSyDQ13T40aX_CYpGpaNIC06EGu6EL9qhXr4",
+    authDomain: "sodiem-b2d84.firebaseapp.com",
+    databaseURL: "https://sodiem-b2d84-default-rtdb.firebaseio.com",
+    projectId: "sodiem-b2d84",
+    storageBucket: "sodiem-b2d84.firebasestorage.app",
+    messagingSenderId: "322544702655",
+    appId: "1:322544702655:web:0387d2a9f5eec850b2a20a",
+    measurementId: "G-3G8GK57FEG"
+};
+
+// Khởi tạo Firebase
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+const scoresRef = database.ref('user_scores');
+
+const subjects = [
+    { id: 'toan', name: 'Toán học', type: 'score' },
+    { id: 'van', name: 'Ngữ văn', type: 'score' },
+    { id: 'anh', name: 'Ngoại ngữ', type: 'score' },
+    { id: 'ly', name: 'Vật lí', type: 'score' },
+    { id: 'hoa', name: 'Hóa học', type: 'score' },
+    { id: 'sinh', name: 'Sinh học', type: 'score' },
+    { id: 'su', name: 'Lịch sử', type: 'score' },
+    { id: 'tin', name: 'Tin học', type: 'score' },
+    { id: 'qtm', name: 'GD Quốc phòng & AN', type: 'score' },
+    { id: 'gdtc', name: 'Giáo dục thể chất', type: 'eval' }
+];
+
+let isRemoteUpdate = false;
+
+function initTable() {
+    const tbody = document.getElementById('scores-body');
+    tbody.innerHTML = '';
+
+    subjects.forEach(sub => {
+        const tr = document.createElement('tr');
+        if (sub.type === 'score') {
+            tr.innerHTML = `
+                <td style="text-align: left; font-weight: 600;">${sub.name}</td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_tx1_1" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_tx2_1" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_tx3_1" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_tx4_1" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_gk_1" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_ck_1" oninput="onInputChanged()"></td>
+                <td class="dtb-cell" id="${sub.id}_dtb_1">-</td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_tx1_2" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_tx2_2" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_tx3_2" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_tx4_2" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_gk_2" oninput="onInputChanged()"></td>
+                <td><input type="number" min="0" max="10" step="0.1" id="${sub.id}_ck_2" oninput="onInputChanged()"></td>
+                <td class="dtb-cell" id="${sub.id}_dtb_2">-</td>
+                <td class="dtb-cell" id="${sub.id}_dtb_cn" style="color: var(--primary);">-</td>
+            `;
+        } else {
+            tr.innerHTML = `
+                <td style="text-align: left; font-weight: 600;">${sub.name}</td>
+                <td colspan="6">
+                    <select id="${sub.id}_eval_1" onchange="onInputChanged()" style="padding: 4px;">
+                        <option value="">-- HK1 --</option>
+                        <option value="D">Đạt (D)</option>
+                        <option value="CD">Chưa Đạt (CD)</option>
+                    </select>
+                </td>
+                <td class="dtb-cell" id="${sub.id}_dtb_1">-</td>
+                <td colspan="6">
+                    <select id="${sub.id}_eval_2" onchange="onInputChanged()" style="padding: 4px;">
+                        <option value="">-- HK2 --</option>
+                        <option value="D">Đạt (D)</option>
+                        <option value="CD">Chưa Đạt (CD)</option>
+                    </select>
+                </td>
+                <td class="dtb-cell" id="${sub.id}_dtb_2">-</td>
+                <td class="dtb-cell" id="${sub.id}_dtb_cn">-</td>
+            `;
+        }
+        tbody.appendChild(tr);
+    });
+}
+
+function getVal(id) {
+    const el = document.getElementById(id);
+    if (!el || el.value === '') return null;
+    const val = parseFloat(el.value);
+    return isNaN(val) ? null : val;
+}
+
+function computeSemesterScore(subId, term) {
+    let txSum = 0, txCount = 0;
+    for (let i = 1; i <= 4; i++) {
+        const val = getVal(`${subId}_tx${i}_${term}`);
+        if (val !== null) { txSum += val; txCount++; }
+    }
+    const gk = getVal(`${subId}_gk_${term}`);
+    const ck = getVal(`${subId}_ck_${term}`);
+
+    if (txCount > 0 && gk !== null && ck !== null) {
+        return (txSum + (gk * 2) + (ck * 3)) / (txCount + 2 + 3);
+    }
+    return null;
+}
+
+function calculate() {
+    let sumDtbHK1 = 0, countHK1 = 0;
+    let sumDtbHK2 = 0, countHK2 = 0;
+    let sumDtbCN = 0, countCN = 0;
+    let listDtbCN = [];
+    let allEvalPass = true;
+
+    subjects.forEach(sub => {
+        if (sub.type === 'score') {
+            const dtb1 = computeSemesterScore(sub.id, 1);
+            const dtb2 = computeSemesterScore(sub.id, 2);
+
+            if (dtb1 !== null) {
+                document.getElementById(`${sub.id}_dtb_1`).innerText = dtb1.toFixed(1);
+                sumDtbHK1 += dtb1; countHK1++;
+            } else document.getElementById(`${sub.id}_dtb_1`).innerText = '-';
+
+            if (dtb2 !== null) {
+                document.getElementById(`${sub.id}_dtb_2`).innerText = dtb2.toFixed(1);
+                sumDtbHK2 += dtb2; countHK2++;
+            } else document.getElementById(`${sub.id}_dtb_2`).innerText = '-';
+
+            if (dtb1 !== null && dtb2 !== null) {
+                const dtbCN = (dtb1 + (dtb2 * 2)) / 3;
+                document.getElementById(`${sub.id}_dtb_cn`).innerText = dtbCN.toFixed(1);
+                sumDtbCN += dtbCN; countCN++; listDtbCN.push(dtbCN);
+            } else document.getElementById(`${sub.id}_dtb_cn`).innerText = '-';
+        } else {
+            const ev1 = document.getElementById(`${sub.id}_eval_1`).value;
+            const ev2 = document.getElementById(`${sub.id}_eval_2`).value;
+
+            document.getElementById(`${sub.id}_dtb_1`).innerText = ev1 ? (ev1 === 'D' ? 'Đạt' : 'C.Đạt') : '-';
+            document.getElementById(`${sub.id}_dtb_2`).innerText = ev2 ? (ev2 === 'D' ? 'Đạt' : 'C.Đạt') : '-';
+
+            if (ev1 === 'CD' || ev2 === 'CD') allEvalPass = false;
+            if (ev1 && ev2) {
+                const passCN = (ev1 === 'D' && ev2 === 'D');
+                document.getElementById(`${sub.id}_dtb_cn`).innerText = passCN ? 'Đạt' : 'C.Đạt';
+                if (!passCN) allEvalPass = false;
+            } else document.getElementById(`${sub.id}_dtb_cn`).innerText = '-';
+        }
+    });
+
+    document.getElementById('dtb-hk1').innerText = countHK1 > 0 ? (sumDtbHK1 / countHK1).toFixed(1) : '0.0';
+    document.getElementById('dtb-hk2').innerText = countHK2 > 0 ? (sumDtbHK2 / countHK2).toFixed(1) : '0.0';
+    document.getElementById('dtb-cn').innerText = countCN > 0 ? (sumDtbCN / countCN).toFixed(1) : '0.0';
+
+    if (countCN === subjects.filter(s => s.type === 'score').length) {
+        document.getElementById('hoc-luc').innerText = classifyHocLuc(parseFloat(document.getElementById('dtb-cn').innerText), listDtbCN, allEvalPass);
+    } else {
+        document.getElementById('hoc-luc').innerText = 'Chưa đủ điểm';
+    }
+}
+
+function classifyHocLuc(avg, scores, evalPass) {
+    if (!evalPass) return 'Chưa Đạt';
+    const minScore = Math.min(...scores);
+    const countGt8 = scores.filter(s => s >= 8.0).length;
+    const countGt65 = scores.filter(s => s >= 6.5).length;
+
+    if (avg >= 6.5 && minScore >= 5.0 && countGt8 >= 6) return 'TỐT';
+    if (avg >= 5.0 && minScore >= 3.5 && countGt65 >= 6) return 'KHÁ';
+    if (avg >= 3.5 && minScore >= 2.0) return 'ĐẠT';
+    return 'CHƯA ĐẠT';
+}
+
+function onInputChanged() {
+    calculate();
+    if (isRemoteUpdate) return;
+
+    const data = {};
+    const inputs = document.querySelectorAll('input, select');
+    inputs.forEach(input => {
+        if (input.value !== '') data[input.id] = input.value;
+    });
+
+    scoresRef.set(data);
+}
+
+scoresRef.on('value', (snapshot) => {
+    document.getElementById('status').innerText = '🟢 Đã kết nối Cloud Realtime';
+    document.getElementById('status').style.background = '#27ae60';
+    
+    const data = snapshot.val() || {};
+    isRemoteUpdate = true;
+
+    const inputs = document.querySelectorAll('input, select');
+    inputs.forEach(input => input.value = '');
+
+    Object.keys(data).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = data[id];
+    });
+
+    calculate();
+    isRemoteUpdate = false;
+}, (error) => {
+    document.getElementById('status').innerText = '🔴 Chưa bật Database (Vào Realtime Database trên Firebase để bật)';
+    document.getElementById('status').style.background = '#e74c3c';
+});
+
+function resetData() {
+    if (confirm("Bạn có chắc muốn xóa toàn bộ điểm trên Cloud không?")) {
+        scoresRef.remove();
+    }
+}
+
+initTable();
+</script>
+
+</body>
+</html>
